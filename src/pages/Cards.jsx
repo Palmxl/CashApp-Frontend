@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { getCards, createCard } from "../services/cards";
+import { getCardBalance } from "../services/stats";
 
 function Cards() {
   const [cards, setCards] = useState([]);
+  const [balances, setBalances] = useState({}); // balance por tarjeta
+
   const [form, setForm] = useState({
     name: "",
     credit_limit: "",
@@ -11,13 +14,22 @@ function Cards() {
     payment_day: "",
   });
 
+  // Cargar tarjetas + balances
   const loadCards = async () => {
     const data = await getCards();
     setCards(data);
+
+    const statsMap = {};
+    for (const card of data) {
+      const stats = await getCardBalance(card.id);
+      statsMap[card.id] = stats;
+    }
+    setBalances(statsMap);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     await createCard({
       ...form,
       credit_limit: Number(form.credit_limit),
@@ -25,7 +37,9 @@ function Cards() {
       cutoff_day: Number(form.cutoff_day),
       payment_day: Number(form.payment_day),
     });
+
     await loadCards();
+
     setForm({
       name: "",
       credit_limit: "",
@@ -40,7 +54,7 @@ function Cards() {
   }, []);
 
   return (
-    <div className="p-8 text-slate-100 max-w-2xl mx-auto">
+    <div className="p-8 text-slate-100 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Mis Tarjetas 💳</h1>
 
       {/* Formulario */}
@@ -106,19 +120,48 @@ function Cards() {
       {cards.length === 0 ? (
         <p className="text-slate-400">No tienes tarjetas aún 👀</p>
       ) : (
-        <div className="space-y-3">
-          {cards.map((c) => (
-            <div
-              key={c.id}
-              className="bg-slate-800 p-4 rounded-xl border border-slate-700"
-            >
-              <h3 className="font-semibold text-lg">{c.name}</h3>
-              <p className="text-slate-300">Cupo: ${c.credit_limit}</p>
-              <p className="text-slate-300">Tasa anual: {c.annual_rate}%</p>
-              <p className="text-slate-300">Corte: día {c.cutoff_day}</p>
-              <p className="text-slate-300">Pago: día {c.payment_day}</p>
-            </div>
-          ))}
+        <div className="space-y-4">
+          {cards.map((card) => {
+            const bal = balances[card.id];
+
+            return (
+              <div
+                key={card.id}
+                className="bg-slate-800 p-5 rounded-xl border border-slate-700"
+              >
+                <h3 className="font-semibold text-lg">{card.name}</h3>
+
+                <p className="text-slate-300">Cupo: ${card.credit_limit}</p>
+                <p className="text-slate-300">Tasa anual: {card.annual_rate}%</p>
+                <p className="text-slate-300">Corte: día {card.cutoff_day}</p>
+                <p className="text-slate-300">Pago: día {card.payment_day}</p>
+
+                {/* Mostrar balance si ya fue cargado */}
+                {bal && (
+                  <div className="mt-4">
+                    <p className="text-slate-200 font-semibold">
+                      Usado: ${bal.balance_used}
+                    </p>
+                    <p className="text-slate-300">
+                      Disponible: ${bal.available_credit}
+                    </p>
+
+                    {/* Barra */}
+                    <div className="w-full h-2 bg-slate-700 rounded mt-2">
+                      <div
+                        className="h-2 bg-blue-500 rounded"
+                        style={{
+                          width: `${
+                            (bal.balance_used / card.credit_limit) * 100
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ function Layout({ children }) {
   const navItems = [
     { label: "Inicio", to: "/" },
     { label: "Tarjetas", to: "/cards" },
+    { label: "Transacciones", to: "/transactions" },
   ];
 
   return (
